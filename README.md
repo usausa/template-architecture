@@ -1,1 +1,1 @@
-# work-ai-project-structure
+# template-architecture
