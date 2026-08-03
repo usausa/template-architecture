@@ -39,8 +39,8 @@
 |---|---|---|---|
 | structure-1 | リポジトリ骨格 | `.slnx` + Solution Items フォルダ(.editorconfig / Analyzers.ruleset / Directory.Build.props 等を登録)、`AGENTS.md`(4行のコーディング規約) + `CLAUDE.md`(`@AGENTS.md` の1行参照)、`.sln.DotSettings` / `Settings.XamlStyler` | — |
 | structure-2 | Directory.Build.props 標準 | `LangVersion=preview` / `Nullable=enable` / `WarningsAsErrors=nullable` / `AnalysisMode=All` + `AnalysisLevel=latest` / `EnforceCodeStyleInBuild` / `Deterministic` / `MSBuildWarningsAsMessages=SA0001` / StyleCop.Analyzers + Usa.Smart.Analyzers.JapaneseComment / Release 時のみ SourceLink + `ContinuousIntegrationBuild` / `Version` の一括管理。`Directory.Build.targets` は空の拡張点 | — |
-| structure-3 | Analyzers.ruleset — 共通コアと個別採用 | 全 ruleset が `<IncludeAll Action="Warning"/>` からの減算方式で共通。**共通コア(全プロジェクト一致)**: `this.` 不要(SA1101)、メンバ順序系(SA1201/1202/1204/1214)、空行系(SA1512/1513/1515/1516)、ドキュメントコメント系(SA1600/1602/1633/1649)、SA1005/SA1121/SA1402/SA1413、CA1028/CA1062(準共通: SA1203/SA1601/CA1002/CA1716/CA1724)。**プロジェクトによる採用**: CA1873(新世代のみ)、CA1416/CA1303/CA1305(クライアント系)、SA1116/SA1117(引数レイアウト、約半数)、CA2007 を ruleset 側に置く例(クライアント系)。アプリ用/基盤用に2分割する構成例もあり(アプリ側は SA1116-1118/CA1034/CA2254、基盤側は SA1503/CA1512 を緩和する非対称構成) | 共通コア + 種別別追加セット(サーバ/クライアント/ライブラリ)として再整理するか。CA2007 の置き場所の統一(→ structure-4) |
-| structure-4 | 警告抑止の三層 | ① ruleset = ソリューション全体・全アセンブリ共通のルール強度。② `GlobalSuppressions.cs` = アセンブリ(プロジェクト)単位の恒久抑止 — **標準ペアは CA1515(トップレベル型を internal にせよ) + CA2007(ConfigureAwait)**。プロジェクトにより CA1819(配列プロパティ)/CA1861/CA1707、SonarAnalyzer 併用側は S 系(S125/S1135 等)、LoggerMessage 不使用側は CA1848 を追加。③ `#pragma warning disable` = 局所抑止(クラス/メソッド単位で囲む、`[SuppressMessage]` には日本語で Justification)。②が ruleset と分かれているのは「ライブラリでは抑止しない」というアセンブリ粒度の判断のため | CA2007 が ruleset のプロジェクトと GlobalSuppressions のプロジェクトが混在 → 置き場所の規約化 |
+| structure-3 | Analyzers.ruleset(決定: 共通化を基本) | 全 ruleset が `<IncludeAll Action="Warning"/>` からの減算方式で共通。**共通コア(全プロジェクト一致)**: `this.` 不要(SA1101)、メンバ順序系(SA1201/1202/1204/1214)、空行系(SA1512/1513/1515/1516)、ドキュメントコメント系(SA1600/1602/1633/1649)、SA1005/SA1121/SA1402/SA1413、CA1028/CA1062(準共通: SA1203/SA1601/CA1002/CA1716/CA1724)。**プロジェクトによる採用**: CA1873(新世代のみ)、CA1416/CA1303/CA1305(クライアント系)、SA1116/SA1117(引数レイアウト、約半数)、CA2007 を ruleset 側に置く例(クライアント系)。アプリ用/基盤用に2分割する構成例もあり(アプリ側は SA1116-1118/CA1034/CA2254、基盤側は SA1503/CA1512 を緩和する非対称構成)。**決定: 共通 ruleset への一本化を基本とし、層依存の規則は ruleset に含めない**(→ structure-4) | — |
+| structure-4 | 警告抑止の三層 | ① ruleset = ソリューション全体・全アセンブリ共通のルール強度。② `GlobalSuppressions.cs` = アセンブリ(プロジェクト)単位の恒久抑止 — **標準ペアは CA1515(トップレベル型を internal にせよ) + CA2007(ConfigureAwait)**。プロジェクトにより CA1819(配列プロパティ)/CA1861/CA1707、SonarAnalyzer 併用側は S 系(S125/S1135 等)、LoggerMessage 不使用側は CA1848 を追加。③ `#pragma warning disable` = 局所抑止(クラス/メソッド単位で囲む、`[SuppressMessage]` には日本語で Justification)。②が ruleset と分かれているのは「ライブラリでは抑止しない」というアセンブリ粒度の判断のため。**決定: CA2007 のような層依存の規則は GlobalSuppressions でプロジェクト単位に無効化する**(Web プロジェクトでは意味をなさないが共通サービス用 DLL では意味をなす、という層依存性のため。ruleset には含めない) | — |
 | structure-5 | 定型ファイル | 各プロジェクトに `GlobalUsing.cs`(先頭に ReSharper disable + pragma、System → サードパーティ → 自プロジェクトの順、将来の置き場をコメントアウトで予約) / `Assembly.cs`(`[assembly: CLSCompliant(false)]` + プラットフォーム属性) / `GlobalSuppressions.cs`(役割は structure-4) | — |
 | structure-6 | コーディングスタイル (.editorconfig) | file-scoped namespace + **using は namespace の内側**、`sealed` 徹底、`_` プレフィックス禁止、区切りコメントによるセクション構造化(`// Log` 1行形式と `//---- 80桁罫線 ----` 帯形式)、ラムダへの `static` 付与。**統一状況(確認済み)**: 大半のリポジトリで単一の .editorconfig とバイト一致。一部に旧世代版(セクション構成、IDE 系 diagnostic 行、一部ルール強度の差)が残るが同一系統からの派生 | 本リポジトリの .editorconfig を正典とし、更新履歴をここで管理する |
 
@@ -49,8 +49,8 @@
 | ID | トピック | 内容 | 揺れ・論点 |
 |---|---|---|---|
 | solution-1 | プロジェクト分割の基本形 | `X.Core`(RootNamespace を短縮: `Template.Core` → `Template`) + ホスト + `X.Tests` の3点構成。クライアントは1ソリューション=1プロジェクト(フォルダ=名前空間でレイヤ分割) | RootNamespace 短縮規約の明文化 |
-| solution-2 | Aspire AppHost | オーケストレーション専用の極薄 AppHost(数行のみ、業務ロジックゼロ、`WithHttpHealthCheck`) | 標準構成として採用するか |
-| solution-3 | 基盤層プロジェクトの分離 | Filter/Binder/Json/Validation/Swagger/Telemetry/Worker を基盤プロジェクトに分離し複数ホストで共有。ASP.NET Core 標準機能の差し替え実装はさらに別プロジェクトに隔離 | 大規模時のみの発展形か、標準構成に含めるか |
+| solution-2 | Aspire AppHost(決定: 標準構成に含める) | オーケストレーション専用の極薄 AppHost(数行のみ、業務ロジックゼロ、`WithHttpHealthCheck`)を **Web の標準構成に含める**。**ServiceDefaults プロジェクトは作らない** — 相当機能(テレメトリ・ヘルスチェック等の既定)はアプリ側に実装し、複数プロジェクト構成では基盤層プロジェクト(solution-3)に組み込む | — |
+| solution-3 | 基盤層プロジェクトの分離 | Filter/Binder/Json/Validation/Swagger/Telemetry/Worker を基盤プロジェクトに分離し複数ホストで共有。ASP.NET Core 標準機能の差し替え実装はさらに別プロジェクトに隔離。複数プロジェクト構成では ServiceDefaults 相当機能もここに組み込む(solution-2) | 単一/複数プロジェクト構成の分離基準の明文化 |
 | solution-4 | Infrastructure の二段構え | アプリ非依存(別プロジェクト、BCL ミラー名前空間 `X.IO` / `X.Threading` 等、CLSCompliant(true))と、アプリ固有だが業務非依存(`Service/Infrastructure/`)の使い分け | 基盤層分離(solution-3)との関係整理 |
 | solution-5 | Tool 群の独立 | 運用ツールは本体を参照せず独立(コードコピー許容) | コピー許容の是非を明文化するか |
 
@@ -59,8 +59,8 @@
 | ID | トピック | 内容 | 揺れ・論点 |
 |---|---|---|---|
 | namespace-1 | サーバ側の標準語彙 | **`Accessors`(複数形に決定)** / `Models.{Entity,View,Parameter}` / `Services`(+`Usecase`/`Subcase`) / `Domain.{Code,Logic}` / `Settings` / `Application` / `Infrastructure` / `Providers` / `Contexts` / `Workers` / `Helpers` / `State` / `Endpoints` | `Services` 直下 vs `Services.Usecase`+`Subcase` 分割 |
-| namespace-2 | Application 名前空間の内容 | 横断アプリ関心: `ApplicationExtensions` / `FeatureFlags` / `MappingProfile` / `NamingPolicy` / `CacheKey` / `LimitPolicy` / `StoragePath` / `Telemetry` / `Validation` / `RateLimiting` / `Logger` | 「何を入れ、何を入れないか」の境界定義 |
-| namespace-3 | Components(決定: Blazor 標準を優先) | `Components` は **Blazor 標準ルール(UI コンポーネントの置き場)を優先**する。従来インフラ部品(`I<Name>` + `<Name>` + `<Name>Options` + `<Name>Exception` の4点セット。Storage/Security 等)に使っていた用法は別の置き場・名称へ移す | インフラ部品側の新しい置き場・名称(候補整理が必要) |
+| namespace-2 | Application 名前空間(決定: アプリ固有の共通部品用) | **`Application` は「アプリ固有の共通部品」の置き場**(アプリ非依存のインフラ部品は `Infrastructure` → namespace-3)。例: `ApplicationExtensions` / `FeatureFlags` / `MappingProfile` / `NamingPolicy` / `CacheKey` / `LimitPolicy` / `StoragePath` / `Telemetry` / `Validation` / `RateLimiting` / `Logger` | — |
+| namespace-3 | Components / Infrastructure(決定) | `Components` は **Blazor 標準ルール(UI コンポーネントの置き場)を優先**する。従来インフラ部品(`I<Name>` + `<Name>` + `<Name>Options` + `<Name>Exception` の4点セット。Storage/Security 等)に使っていた用法は **`Infrastructure` を優先して配置**する(`Application` は「アプリ固有の共通部品」用 → namespace-2) | クライアント側のプラットフォーム機能ラッパ(現 `Components`)の扱い(namespace-7) |
 | namespace-4 | Domain の作法 | `Domain/Code` は enum ではなく `static class` + `const`(DB 数値と直結、判定メソッド同居)。`Domain/Logic` に純関数。`Length` に桁数定数集約。Domain は無依存 | enum を使わない理由と適用範囲の明文化 |
 | namespace-5 | モデルのサフィックス規約 | `*Entity`(テーブル) / `*View`(SQL結果) / `*Parameter`(SQL引数) / `*Request`・`*Response`(API境界) / `*Setting` / `*Options` / `*Entry`(ネスト設定) | — |
 | namespace-6 | Usecase 層 | 外部 SDK・複数 Service を束ねる業務単位。戻り値は SDK 型を漏らさず record に詰め替え | `Usecase` 名前空間 vs `Services.Usecase` の場所 |
@@ -90,7 +90,7 @@
 |---|---|---|---|
 | log-1 | Log.cs 定型 | `internal static partial class Log` + `[LoggerMessage]` ソースジェネレータ、`Info*/Warn*/Error*` プレフィックス、書式 `Xxx. key=[{value}]`、名前空間(フォルダ)毎に `Log.cs` を分割配置。文字列補間ログは書かない。素の `LogInformation` を使う場合は `#pragma warning disable CA1848` を明示 | — |
 | log-2 | Serilog の構成方法 | コードは `builder.Logging.ClearProviders()` → `AddSerilog(o => o.ReadFrom.Configuration(builder.Configuration))` のみ。**シンク/Enricher/レベルは 100% appsettings の `Serilog` セクションに委譲** | `writeToProviders` を渡す条件(OTLP併用時) |
-| log-3 | outputTemplate の標準形 | 基本: `{Timestamp:HH:mm:ss.fff} {Level:u4} {MachineName} [{ThreadId}] - {Message:lj}{NewLine}{Exception}`。Web は `[{SourceContext}]` `{TraceId}` `{RequestId}` `{RequestPath}` を追加。業務フィールド(インスタンス ID / セッション系)の追加や、AsyncLocal なコンテキストから `CallbackEnricher` で値を供給する拡張形あり | 用途別テンプレート表(基本/Web/Batch/業務拡張)としてまとめる。Timestamp に日付を含めるか |
+| log-3 | outputTemplate の標準形 | 基本: `{Timestamp:HH:mm:ss.fff} {Level:u4} {MachineName} [{ThreadId}] - {Message:lj}{NewLine}{Exception}`。Web は `[{SourceContext}]` `{TraceId}` `{RequestId}` `{RequestPath}` を追加。業務フィールド(インスタンス ID / セッション系)の追加や、AsyncLocal なコンテキストから `CallbackEnricher` で値を供給する拡張形あり。**Timestamp は時刻のみ(`HH:mm:ss.fff`、日付を含めない)で確定**(現状の多数派に一致。日付はファイル名・実行文脈から判別) | 用途別テンプレート表(基本/Web/Batch/業務拡張)としてまとめる |
 | log-4 | Enricher / シンク構成 | `FromLogContext, WithThreadId, WithMachineName`(+`WithSpan`)。File シンクは実行フォルダ外の Log ディレクトリに日次ローテーション(`<App>_.log`)。Development で Console/Debug 追加 + Debug レベル。Syslog 二重出し(UdpSyslog、Timestamp と Exception を落とした専用テンプレート)の形もあり | — |
 | log-5 | ログ4系統の個別トグル | W3C アクセスログ / HTTP ログ / Invoke トレース / SQL トレースを `Log` セクションの bool で ON/OFF (`LogSetting` + 入れ子 Entry) | — |
 
@@ -126,14 +126,14 @@
 | ID | トピック | 内容 | 揺れ・論点 |
 |---|---|---|---|
 | blazor-1 | ViewHelper / ViewExtensions | `ViewHelper` = 値→表示の静的純関数(`_Imports.razor` で `@using static` して razor から裸で呼ぶ)。`ViewExtensions` = 書式化の拡張メソッド。ラムダ型推論用 `FilterBy<T>/SortBy<T>` | 両者の境界基準を明文化 |
-| blazor-2 | フレームワーク拡張群 | `JSRuntimeExtensions` / `NavigationManagerExtensions` / `SnackbarExtensions` / `DialogServiceExtensions` を1箇所に集約 | 集約先(namespace-3 の決定に合わせる) |
+| blazor-2 | フレームワーク拡張群 | `JSRuntimeExtensions` / `NavigationManagerExtensions` / `SnackbarExtensions` / `DialogServiceExtensions` を `Infrastructure` に集約 | — |
 | blazor-3 | AppComponentBase | `ComponentBase, IDisposable` + 遅延 `Disposables`。Hybrid 版は `Execute/ExecuteAsync` + `BusyState` ガード内蔵 | — |
 | blazor-4 | code-behind 分離と節構造 | `.razor` + `.razor.cs` partial 必須。`[Inject] public required T X { get; set; }`。ビハインド内は `// State → Data → Parameter → Lifecycle → Action → Helper` の固定順 | 固定順コメントを規約化するか |
 | blazor-5 | State 管理(決定済み) | **ページの private フィールドで保持を基本とする**(Scoped な State コンテナ方式は明文化しない) | — |
 | blazor-6 | レイアウト・シェル | `MainLayout` が `ITitleManager`/`IMenuSectionManager` を実装し CascadingParameter で配布。`ErrorDispatcher` + `Error403/404/500`。`ProgressState` + `ProgressStateScope`(IDisposable) | — |
 | blazor-7 | Cookie 認証一式 | `CookieAuthenticationStateProvider` / `LoginManager` / `ILoginProvider` / `Account` / `Claims` / `Roles` / `TokenHelper` + `CookieAuthenticationSetting` | — |
 | blazor-8 | バリデーション | FluentValidation: `FluentValueValidator` + `InlineValidator<Form>` を static readonly で保持、Form はページにネスト定義 | — |
-| blazor-9 | UI ライブラリ | MudBlazor と FluentUI が併存 | 選定基準(Server=MudBlazor / WASM=FluentUI?) |
+| blazor-9 | UI ライブラリ(決定: 共通要件で規定しない) | UI ライブラリはプロジェクト固有の選定とし、共通要件では規定しない | — |
 
 ### mvvm — XAML 系クライアント共通
 
@@ -194,7 +194,7 @@
 | test-1 | AAA パターン(規約決定済み) | **テストは AAA(`// Arrange` / `// Act` / `// Assert`)パターンで記述する**ことを規約とする | シナリオテストでの和文見出し(`// ■事前準備` 等)との併用整理 |
 | test-2 | テスト基盤(決定済み) | **xunit.v3 + Microsoft.Testing.Platform ランナー(`OutputType=Exe`) + CodeCoverage.runsettings(cobertura、`.g.cs` 除外)を正とする** | — |
 | test-3 | 配置・命名 | テストの RootNamespace = 対象と同一、フォルダは対象構造をミラー、クラス名 `<対象>Test`(Tests ではない)、partial 分割可、テスト名 `Test{機能}{条件}` | — |
-| test-4 | モック方針 | NSubstitute(Moq 不使用) + 振る舞い持ちは手書き `private sealed class MockXxx` + `Usa.Smart.Mock.Data`。ロガーは何もしない `DebugLoggerFactory` | **モックの配置(共有 `Mock/` フォルダ + GlobalUsing 等)は再考する** |
+| test-4 | モック方針 | NSubstitute(Moq 不使用) + 振る舞い持ちは手書き `private sealed class MockXxx` + `Usa.Smart.Mock.Data`。ロガーは何もしない `DebugLoggerFactory`。**共有モックの名前空間は `Mocks` に決定**(`Mocks/` フォルダ + GlobalUsing) | — |
 | test-5 | Helper セクション方式 | クラス冒頭 `// ---- Helper ----` に `CreateParameter`(パラメータオブジェクト) + `CreateXxx()` ファクトリを集約、テスト本体は3〜10行。機能毎に `// ---- Xxx ----` で区切り | AAA(test-1)と併用する形の整理 |
 | test-6 | シナリオ結合テスト | `WebApplicationFactory` + `extern alias`、属性で `Scenario/NNXxxTest.cs` ⇔ `data/NNXxx/` を1対1対応、サービス差し替えヘルパ(`RemoveService`)、時刻固定 `StaticTimeProvider`、`[IntegrationFact]` でスキップ制御、リクエスト/レスポンスの JSON 記録(エビデンス化) | — |
 | test-7 | bunit | Blazor コンポーネントテスト | — |
@@ -225,19 +225,34 @@
 4. **テスト記述** — AAA パターンを規約とする (test-1)
 5. **テスト基盤** — xunit.v3 + Microsoft.Testing.Platform を正とする (test-2)
 6. **名前空間** — `Accessors`(複数形)に統一 (namespace-1)
-7. **Components** — Blazor 標準ルールを優先(UI コンポーネントの置き場)。インフラ部品の用法は別の場所へ (namespace-3)
+7. **Components** — Blazor 標準ルールを優先(UI コンポーネントの置き場) (namespace-3)
 8. **Blazor の State** — ページの private フィールド保持を基本とする (blazor-5)
 9. **設定クラスの配置** — アプリ設定は `Settings/` 配下、コンポーネント固有設定はコンポーネントと同居 (config-4)
 10. **テレメトリ設定** — 環境変数から取得する (telemetry-1)
+11. **Analyzers.ruleset** — 共通化を基本とし、CA2007 のような層依存の規則は GlobalSuppressions でプロジェクト単位に無効化する (structure-3, structure-4)
+12. **インフラ部品の置き場** — `Infrastructure` を優先。`Application` は「アプリ固有の共通部品」用 (namespace-2, namespace-3)
+13. **UI ライブラリ** — プロジェクト固有の選定とし、共通要件では規定しない (blazor-9)
+14. **ログの Timestamp** — 時刻のみ(`HH:mm:ss.fff`)、日付は含めない (log-3)
+15. **モックの名前空間** — `Mocks` (test-4)
+16. **Aspire** — Web の標準構成に含める。ServiceDefaults プロジェクトは作らず、相当機能はアプリ側/(複数プロジェクト構成では)基盤層プロジェクトへ (solution-2, solution-3)
 
 ## 3. 主要な残論点
 
-1. **Analyzers.ruleset の再整理** — 共通コアへ1本化するか、種別(サーバ/クライアント/ライブラリ)毎の追加セットを定義するか。CA2007 の置き場所(ruleset vs GlobalSuppressions)の統一 (structure-3, structure-4)
-2. **インフラ部品の新しい置き場・名称** — 旧 `Components.<機能>`(I+実装+Options+Exception の4点セット)の移設先 (namespace-3)
-3. **UI ライブラリ** — MudBlazor vs FluentUI の選定基準 (blazor-9)
-4. **outputTemplate** — Timestamp に日付を含めるか (log-3)
-5. **モックの配置** — 共有 `Mock/` フォルダ等の再考 (test-4)
-6. **Aspire AppHost** — 標準構成に含めるか (solution-2)
+ドキュメント執筆前に決定したい項目:
+
+1. **Usecase/Subcase の場所** — `Services` 直下に置くか、`Services.Usecase`/`Services.Subcase` に分けるか、独立の `Usecase` とするか (namespace-1, namespace-6)
+2. **クライアント側のプラットフォーム機能ラッパの置き場** — 現 `Components`(NFC・OCR 等)を維持するか `Infrastructure` 等へ寄せるか。`Modules` vs `Views` の使い分けも含む (namespace-7, maui-4)
+3. **ジョブスケジューラのライブラリ選定** (worker-3)
+4. **WPF の画面遷移方式** — Smart.Navigation を採用するか、WindowManager のみとするか (wpf-1)
+5. **TCP サーバ基盤の使い分け基準** — Kestrel `ConnectionHandler` 方式と自作 `SslServerService` 方式 (network-1)
+6. **Tool 群のコードコピー許容** — 本体非参照の独立ツールでコピーを認めるか (solution-5)
+
+執筆時に決めれば足りる軽微な項目:
+
+7. `UseWindowsService().UseSystemd()`(Host 拡張)と `Services.AddWindowsService().AddSystemd()` の表記統一 (deploy-1)
+8. razor.cs 内の節コメント固定順を規約とするか (blazor-4)
+9. テストプロジェクト分割(1プロジェクト ⇔ 4分割)の基準 (test-8)
+10. .editorconfig の正典を本リポジトリ版として更新管理する運用 (structure-6)
 
 ## 4. ドキュメント構成案
 
